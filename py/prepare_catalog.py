@@ -6,7 +6,7 @@ import sys, cPickle
 import matplotlib.pyplot as plt
 from optparse import OptionParser
 
-dirname="data/spectra_sky"
+dirname="sky_data/"
 outcat="catalog.cp"
 skipfact=10000
 parser = OptionParser()
@@ -21,10 +21,12 @@ parser.add_option("--skip", dest="skipfact", default=skipfact,
 
 (o, args) = parser.parse_args()
 
-print "Preparing file list..."
-filelist=glob(o.dirname+"/*/*.fits")
+globst=o.dirname+"/*/*.fits"
+print "Preparing file list from:",globst
+filelist=glob(globst)
 Nf=len(filelist)
-print "Done, we have ",Nf,"files, will use", Nf/o.skipfact,"."
+Nfp=Nf/o.skipfact
+print "Done, we have ",Nf,"files, will use", Nfp,"."
 
 if (Nf==0):
     print "No files, quitting."
@@ -33,7 +35,8 @@ if (Nf==0):
 cat=[]
 totvars=[]
 for ifile,filename in enumerate(filelist[::o.skipfact]):
-    print filename
+    print "\rDoing %i / %i"%(ifile, Nfp),
+    sys.stdout.flush()
     da=pyfits.open(filename)
     vars=[]
     for ext in da[4:]:
@@ -43,16 +46,17 @@ for ifile,filename in enumerate(filelist[::o.skipfact]):
              np.cos(ext.header["AZ"]/180.*np.pi)]
         vars.append(var)
         totvars.append(var)
-    cat.append((filename, np.arrays(vars)))
+    cat.append((filename, np.array(vars)))
+print 
 
 totvars=np.array(totvars)
 minv=totvars.min(axis=0)
 maxv=totvars.max(axis=0)
-meanv=totvars.mean(axis,0)
+meanv=totvars.mean(axis=0)
 med=np.median(totvars,axis=0)
 
-for i,mn,mx,mean,med in zip(np.range(minv),minv,maxv,meanv,med):
-    print "Variable i: min, max, mean, median: %f %f %f %f"%(
+for i,mn,mx,mean,med in zip(range(len(minv)),minv,maxv,meanv,med):
+    print "Variable %i: min, max, mean, median: %f %f %f %f"%(i,
          mn,mx,mean,med)
 
 cPickle.dump((cat,(mn,mx,mean,med)),open(o.outcat,'w'))
