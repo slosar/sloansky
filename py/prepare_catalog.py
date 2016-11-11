@@ -2,7 +2,7 @@
 from glob import glob
 import numpy as np
 import pyfits
-import sys
+import sys, cPickle
 import matplotlib.pyplot as plt
 from optparse import OptionParser
 
