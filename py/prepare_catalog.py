@@ -6,6 +6,7 @@ import sys, cPickle
 import matplotlib.pyplot as plt
 from optparse import OptionParser
 from mpi4py import MPI
+import moon_angle_var as mav
 
 dirname="sky_data/"
 outcat="catalog.cp"
@@ -49,11 +50,12 @@ for ifile,filename in enumerate(filelist[mystart*o.skipfact:myend*o.skipfact:o.s
     sys.stdout.flush()
     da=pyfits.open(filename)
     vars=[]
-    for ext in da[4:]:
+    for i,ext in enumerate(da[4:]):
         ## values of variables
         var=[np.cos(ext.header["ALT"]/180.*np.pi),
              np.sin(ext.header["AZ"]/180.*np.pi),
-             np.cos(ext.header["AZ"]/180.*np.pi)]
+             np.cos(ext.header["AZ"]/180.*np.pi),
+             mav.moon_angle_var(da,ext)]
         vars.append(var)
         totvars.append(var)
     cat.append((filename, np.array(vars)))

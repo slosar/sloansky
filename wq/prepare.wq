@@ -1,0 +1,6 @@
+N: 6
+group: [new,new2]
+job_name: prepare_sky
+hostfile: auto
+command: mpirun -hostfile %hostfile% py/prepare_catalog.py -o fullcat --skip=1 
+
