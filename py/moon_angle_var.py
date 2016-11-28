@@ -8,6 +8,11 @@ from astral import Astral, Location
 from astropy.time import Time
 import astropy.units as u
 
+# don't worry about iers
+#from astropy.utils import iers
+#iers.conf.auto_download = False  
+#iers.conf.auto_max_age = None  
+
 # Location, never changes
 apl = Location()
 apl.name = 'Apache Point Observatory'

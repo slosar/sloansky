@@ -8,6 +8,11 @@ from optparse import OptionParser
 from mpi4py import MPI
 import moon_angle_var as mav
 
+# don't worry about iers
+#from astropy.utils import iers
+#iers.conf.auto_download = False  
+#iers.conf.auto_max_age = None  
+
 dirname="sky_data/"
 outcat="catalog.cp"
 skipfact=10000
@@ -19,6 +24,9 @@ parser.add_option("-o","--output filename", dest="outcat", default=outcat,
                   help="Output filename", type="string")
 parser.add_option("--skip", dest="skipfact", default=skipfact,
                   help="skip factor", type="int")
+parser.add_option("--moon", dest="do_moon", default=1,
+                  help="Do moon variable", type="int")
+
 ## add loglam options here
 
 (o, args) = parser.parse_args()
@@ -47,15 +55,19 @@ if (Nf==0):
 cat=[]
 totvars=[]
 for ifile,filename in enumerate(filelist[mystart*o.skipfact:myend*o.skipfact:o.skipfact]):
-    sys.stdout.flush()
+    if rank==0:
+        print "Doing: %i/%i"%(ifile*size, Nfp)
     da=pyfits.open(filename)
     vars=[]
     for i,ext in enumerate(da[4:]):
         ## values of variables
         var=[np.cos(ext.header["ALT"]/180.*np.pi),
              np.sin(ext.header["AZ"]/180.*np.pi),
-             np.cos(ext.header["AZ"]/180.*np.pi),
-             mav.moon_angle_var(da,ext)]
+             np.cos(ext.header["AZ"]/180.*np.pi)]
+        if o.do_moon:
+            #print "adding moon"
+            var.append(mav.moon_angle_var(da,ext))
+            #print "done"
         vars.append(var)
         totvars.append(var)
     cat.append((filename, np.array(vars)))

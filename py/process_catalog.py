@@ -4,6 +4,9 @@ import numpy as np
 import pyfits,sys, cPickle
 from optparse import OptionParser
 from mpi4py import MPI
+# need a better solution
+import warnings
+warnings.filterwarnings("ignore")
 
 parser = OptionParser()
 ll_start=3.45
@@ -18,6 +21,8 @@ parser.add_option("--ll_step", dest="ll_step", default=ll_step,
                   help="loglam step", type="float")
 parser.add_option("--Nit", dest="Nit", default=Nit,
                   help="Number of iterations", type="int")
+parser.add_option("--outroot", dest="outroot", default="output/",
+                  help="Output root", type="string")
 #
 ## add loglam options here
 (o, args) = parser.parse_args()
@@ -35,14 +40,19 @@ if (rank==0):
 else:
     med=[]
     cat=[]
+if (rank==0):
+    print "Broadcasting..."
 med=comm.bcast(med,root=0)
 cat=comm.bcast(cat,root=0)
+comm.Barrier()
+if (rank==0):
+    print "Done..."
 Nf=len(cat)
 mystart=int(Nf*rank*1.0/size)
 myend=int(Nf*(rank+1)*1.0/size)
 if (rank==size-1):
     myend=Nf
-Np=(ll_end-ll_start)/ll_step
+Np=int((ll_end-ll_start)/ll_step+1)
 meansky=np.zeros(Np)
 Nc=len(med)
 contr=[np.zeros(Np) for i in range(Nc)]
@@ -56,7 +66,11 @@ for iter in range(Nit):
         nsp=0
         current=np.zeros(Np)
         currentw=np.zeros(Np)
+        cc=0
         for filename,vars in cat[mystart:myend]:
+            cc+=1
+            if rank==0:
+                print "Done: %i/%i"%(cc,myend-mystart)
             da=pyfits.open(filename)
             Ne=len(da)-4
             assert(Ne==len(vars))
@@ -83,12 +97,12 @@ for iter in range(Nit):
         currentw=comm.allreduce(currentw,op=MPI.SUM)
         
         current/=currentw
-        current[np.where(current>10)]=10.0
-        current[np.where(current<0)]=0.0
+        current[np.where(current>20)]=20.0
+        current[np.where(current<-20)]=-20.0
         if (varcount==-1):
             meansky=current*1.0
             if (rank==0):
-                f=open("meansky%i.txt"%(iter),"w")
+                f=open(o.outroot+"meansky%i.txt"%(iter),"w")
                 for l,w,v in zip(loglam,currentw,meansky):
                     if w>0:
                         f.write("%g %g %g\n"%(l,w,v))
@@ -97,7 +111,7 @@ for iter in range(Nit):
         else:
             contr[varcount]=current*1.0
             if (rank==0):
-                f=open("componet%i_%i.txt"%(varcount,iter),"w")
+                f=open(o.outroot+"component%i_%i.txt"%(varcount,iter),"w")
                 for l,w,v in zip(loglam,currentw,current):
                     if w>0:
                         f.write("%g %g %g\n"%(l,w,v))
