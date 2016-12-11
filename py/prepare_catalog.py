@@ -8,7 +8,8 @@ from optparse import OptionParser
 from mpi4py import MPI
 import moon_angle_var as mav
 import time
-
+from astropy.coordinates import SkyCoord,  ICRS, BarycentricTrueEcliptic
+import astropy.units as u
 # don't worry about iers
 #from astropy.utils import iers
 #iers.conf.auto_download = False  
@@ -29,6 +30,8 @@ def options():
                       help="skip factor", type="int")
     parser.add_option("--moon", dest="moon", default=0,
                       help="Moon: 0=ignore, 1=use, 2=cache", type="int")
+    parser.add_option("--ecliptic", dest="ecliptic", default=0,
+                      help="ecliptic: 0=ignore, 1=use, 2=cache", type="int")
 
     return parser.parse_args()
     
@@ -68,7 +71,7 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
         for i,ext in enumerate(da[4:]):
             var=[]
             ## values of variables
-            alt,az=[ext.header[x]/180.*np.pi for x in ["ALT","AZ"]]
+            alt,az,ra,dec=[ext.header[x]/180.*np.pi for x in ["ALT","AZ","RA","DEC"]]
             ## add azimuth vars
             azstep=2*np.pi/12.
             for ai in range(12):
@@ -86,6 +89,13 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                 if (o.moon==2):
                     caches["moon"][(filename,i)]=mav.moon_angle_var(da,ext)
                 var.append(caches["moon"][(filename,i)])
+
+            if o.ecliptic:
+                if (o.ecliptic==2):
+                    ecl=ICRS(ra=ra*u.rad, dec=dec*u.rad).transform_to(BarycentricTrueEcliptic)
+                    caches["ecliptic"][(filename,i)]=np.exp(-(ecl.lat**2/(2*(10*u.deg**2))))
+                var.append(caches["ecliptic"][(filename,i)])
+
 
             vars.append(var)
             totvars.append(var)
@@ -115,27 +125,32 @@ def getFlist(o):
         sys.exit(1)
     return filelist,Nf,Nfp, mystart, myend
 
+
 def getVnames(o):
     vnames=[]
     vnames=['az'+str(i) for i in range(12)]
     caches={}
+    for name in ["moon", "ecliptic"]:
     ## cached moon
-    if (o.moon):
-        vnames.append("moon")
-        if (o.moon==1):
-            caches["moon"]=cPickle.load(open("moon.cache"))
-        else:
-            caches["moon"]={}
+        if (getattr(o,name)):
+            vnames.append(name)
+            if (getattr(o,name)==1):
+                caches[name]=cPickle.load(open(name+".cache"))
+            else:
+                caches[name]={}
     return vnames, caches
 
 def saveCaches(o, caches):
-
-    if (o.moon==2):
-        allmoons=comm.gather(caches["moon"],root=0)
-        if (rank==0):
-            for imoon in allmoons[1:]:
-                caches["moon"].update(imoon)
-            cPickle.dump(caches["moon"],open('moon.cache','w'),-1)
+    for name in ["moon", "ecliptic"]:
+        print name, getattr(o,name)
+        if (getattr(o,name)==2):
+            ## moons below can by anything
+            allmoons=comm.gather(caches[name],root=0)
+            if (rank==0):
+                for imoon in allmoons[1:]:
+                    caches[name].update(imoon)
+                print "Writing ",name+".cache"
+                cPickle.dump(caches[name],open(name+".cache",'w'),-1)
 
 def saveCatalog(o,vnames,cat,totvars):
     allcats=comm.gather(cat,root=0)
@@ -153,8 +168,8 @@ def saveCatalog(o,vnames,cat,totvars):
         medv=np.median(totvars,axis=0)
 
         for i,mn,mx,mean,med in zip(range(len(minv)),minv,maxv,meanv,medv):
-            print "Variable %i: min, max, mean, median: %f %f %f %f"%(i,
-                 mn,mx,mean,med)
+            print "Variable %i %s : min, max, mean, median: %f %f %f %f"%(i,
+              vnames[i],mn,mx,mean,med)
 
         cPickle.dump((cat,vnames, (minv,maxv,meanv,medv)),open(o.outcat,'w'))
 

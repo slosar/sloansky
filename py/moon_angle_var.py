@@ -28,8 +28,6 @@ aplEL=EarthLocation(lon=apl.longitude*u.deg, lat=apl.latitude*u.deg,height=apl.e
 def moon_angle_var(fobj,ext):
     #getting RA and DEC
     sampling=fobj[0].header
-    RA=sampling['RA']
-    DEC=sampling['DEC']
 
     #FINDING INTERPLATE SKY TIME
     fin_mean=[] #time for each moon sky observation interplate, used for moon angle
