@@ -14,27 +14,29 @@ import time
 #iers.conf.auto_download = False  
 #iers.conf.auto_max_age = None  
 
-dirname="sky_data/"
-outcat="catalog.cp"
-skipfact=10000
-parser = OptionParser()
+def options():
 
-parser.add_option("-D","--dirname", dest="dirname", default=dirname,
-                  help="Root directory of data files", type="string")
-parser.add_option("-o","--output filename", dest="outcat", default=outcat,
-                  help="Output filename", type="string")
-parser.add_option("--skip", dest="skipfact", default=skipfact,
-                  help="skip factor", type="int")
-parser.add_option("--moon", dest="moon", default=0,
-                  help="Moon: 0=ignore, 1=use, 2=cache", type="int")
+    dirname="sky_data/"
+    outcat="catalog.cp"
+    skipfact=10000
+    parser = OptionParser()
 
+    parser.add_option("-D","--dirname", dest="dirname", default=dirname,
+                      help="Root directory of data files", type="string")
+    parser.add_option("-o","--output filename", dest="outcat", default=outcat,
+                      help="Output filename", type="string")
+    parser.add_option("--skip", dest="skipfact", default=skipfact,
+                      help="skip factor", type="int")
+    parser.add_option("--moon", dest="moon", default=0,
+                      help="Moon: 0=ignore, 1=use, 2=cache", type="int")
 
+    return parser.parse_args()
+    
 
 def main():
     #init
-    (o, args) = parser.parse_args()
+    o,args=options()
     setMPI(o)
-
     ## file list, Number of files, Nf after skipping, mystart-end indices
     filelist,Nf,Nfp, mystart, myend =getFlist(o)
     # variable names
