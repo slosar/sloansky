@@ -32,6 +32,8 @@ def options():
                       help="Output filename", type="string")
     parser.add_option("--skip", dest="skipfact", default=skipfact,
                       help="skip factor", type="int")
+    parser.add_option("--weather", dest="weather", default=0,
+                      help="weather: 0=ignore, 1=use", type="int")
     for n in cnlist:
         parser.add_option("--"+n, dest=n, default=0,
                       help=n+": 0=ignore, 1=use, 2=cache", type="int")
@@ -62,28 +64,22 @@ def setMPI(o):
         time.sleep(rank)
 
 def getMaps(o):
-
+    SFD,halpha,haslam=None,None,None
     if o.SFD==2:
         if rank==0:
             print "Reading SFD map"
             SFD=pyfits.open("data/lambda_sfd_ebv.fits")[1].data["TEMPERATURE"]
-        else:
-            SFD=None
         SFD=comm.bcast(SFD,root=0)
     if o.halpha==2:
         if rank==0:
             print "Reading halpha map"
             halpha=pyfits.open("data/lambda_halpha_fwhm06_0512.fits")[1].data["TEMPERATURE"]
-        else:
-            halpha=None
         halpha=comm.bcast(halpha,root=0)
     if o.haslam==2:
         if rank==0:
             print "Reading haslam map"
             haslam=pyfits.open("data/haslam408_dsds_Remazeilles2014.fits")[1].data["TEMPERATURE"]
             haslam=haslam.reshape((12*512**2,))
-        else:
-            haslam=None
         haslam=comm.bcast(haslam,root=0)
 
     return SFD,halpha,haslam
@@ -113,7 +109,14 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                 else:
                     v=0
                 var.append(v)
-
+            if o.weather:
+                try:
+                    #var.append(ext.header['DUSTA']/50000)
+                    #var.append(ext.header['DUSTB']/50000)
+                    var.append(ext.header['SEEING50'])
+                except:
+                    print "bad",filename, i
+                    sys.exit(1)
             if o.moon:
                 if (o.moon==2):
                     caches["moon"][(filename,i)]=mav.moon_angle_var(da,ext)
@@ -199,6 +202,12 @@ def getFlist(o):
 def getVnames(o):
     vnames=[]
     vnames=['az'+str(i) for i in range(12)]
+    if (o.weather):
+        #for n in ['dusta','dustb','seeing']:
+        #dusta,dustb seemingly not everywhere
+        for n in ['seeing']:
+            vnames.append(n)
+        
     caches={}
     for name in cnlist:
     ## cached moon
@@ -212,7 +221,6 @@ def getVnames(o):
 
 def saveCaches(o, caches):
     for name in cnlist:
-        print name, getattr(o,name)
         if (getattr(o,name)==2):
             ## moons below can by anything
             allmoons=comm.gather(caches[name],root=0)
