@@ -11,6 +11,7 @@ import time
 from astropy.coordinates import SkyCoord,  ICRS, BarycentricTrueEcliptic
 import astropy.units as u
 import healpy as hp
+from SolarActivity import SolarActivity
 # don't worry about iers
 #from astropy.utils import iers
 #iers.conf.auto_download = False  
@@ -32,8 +33,15 @@ def options():
                       help="Output filename", type="string")
     parser.add_option("--skip", dest="skipfact", default=skipfact,
                       help="skip factor", type="int")
+    parser.add_option("--Naz", dest="Naz", default=36,
+                      help="# azmimuths", type="int")
     parser.add_option("--weather", dest="weather", default=0,
                       help="weather: 0=ignore, 1=use", type="int")
+    parser.add_option("--sunspots", dest="sunspots", default=0,
+                      help="sunspots: 0=ignore, 1=use", type="int")
+    parser.add_option("--chips", dest="chips", default=0,
+                      help="chips: 0=ignore, 1=use", type="int")
+
     for n in cnlist:
         parser.add_option("--"+n, dest=n, default=0,
                       help=n+": 0=ignore, 1=use, 2=cache", type="int")
@@ -88,24 +96,32 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
     cat=[]
     totvars=[]
     SFD,halpha,haslam=getMaps(o)
+    if o.sunspots:
+        sa=SolarActivity(comm)
+
     for ifile,filename in enumerate(filelist[mystart*o.skipfact:myend*o.skipfact:o.skipfact]):
         if rank==0:
             print "Doing: %i/%i"%(ifile*size, Nfp)
         da=pyfits.open(filename)
+        fiber=da[0].header['FIBERID']
         vars=[]
         for i,ext in enumerate(da[4:]):
             var=[]
             ## values of variables
             alt,az,ra,dec=[ext.header[x]/180.*np.pi for x in ["ALT","AZ","RA","DEC"]]
             ## add azimuth vars
-            azstep=2*np.pi/12.
-            for ai in range(12):
+            azstep=2*np.pi/o.Naz
+            for ai in range(o.Naz):
                 taz=azstep*(ai+0.5)
+                if (az<0):
+                    az+=2*np.pi
                 daz=abs(az-taz)
+                #print daz,taz,az
+                assert (daz<2*np.pi)
                 if (daz>np.pi):
-                    daz-=np.pi
-                if (daz<azstep/2):
-                    v=(1.-daz/(azstep/2))*np.cos(alt)
+                    daz=2*np.pi-daz
+                if (daz<azstep):
+                    v=(1.-daz/(azstep))*np.cos(alt)
                 else:
                     v=0
                 var.append(v)
@@ -117,6 +133,20 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                 except:
                     print "bad",filename, i
                     sys.exit(1)
+
+            if o.sunspots:
+                var.append(sa.activity(ext.header['MJD']))
+
+            if o.chips:
+                ##camera
+                var.append(int(fiber>500))
+                ## chip no
+                if (fiber>500):
+                    cfiber=fiber-500
+                else:
+                    cfiber=fiber
+                var.append(np.sin((cfiber-1)*np.pi/499)) ## zero at edges
+
             if o.moon:
                 if (o.moon==2):
                     caches["moon"][(filename,i)]=mav.moon_angle_var(da,ext)
@@ -201,13 +231,19 @@ def getFlist(o):
 
 def getVnames(o):
     vnames=[]
-    vnames=['az'+str(i) for i in range(12)]
+    vnames=['az'+str(i) for i in range(o.Naz)]
     if (o.weather):
         #for n in ['dusta','dustb','seeing']:
         #dusta,dustb seemingly not everywhere
         for n in ['seeing']:
             vnames.append(n)
-        
+    if (o.sunspots):
+        vnames.append("sunspots")
+    if (o.chips):
+        vnames.append("camera")
+        vnames.append("specedge")
+
+
     caches={}
     for name in cnlist:
     ## cached moon

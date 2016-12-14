@@ -82,7 +82,12 @@ def analyze(o,cat,vnames,ofs):
     if (rank==0):
         print "Starting..."
     for iter in range(o.Nit):
-        for varcount in range(-1,Nc):
+        if rank==0:
+            todolist=[-1]+list(np.random.permutation(Nc))
+        else:
+            todolist=None
+        todolist=comm.bcast(todolist,root=0)
+        for varcount in todolist:
             if (rank==0):
                 print "Iteration, variable: ",iter, varcount, 
                 if (varcount<0):
