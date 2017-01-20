@@ -157,16 +157,21 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                 if (o.ecliptic==2):
                     scord=SkyCoord(ra=ra*u.rad, dec=dec*u.rad, frame='icrs')
                     ecl=scord.geocentrictrueecliptic
-                    caches["ecliptic"][(filename,i)]=np.exp(-(ecl.lat**2/(2*(10.*u.deg)**2)))
-                var.append(caches["ecliptic"][(filename,i)])
+                    caches["ecliptic"][(filename,i)]=ecl.lat
+                ecllat=caches["ecliptic"][(filename,i)]
+                for d in [1.,5.,10.,20.]:
+                    var.append(np.exp(-(ecllat**2/(2*(d*u.deg)**2))))
 
             if o.galactic:
                 if (o.galactic==2):
                     if scord is None:
                         scord=SkyCoord(ra=ra*u.rad, dec=dec*u.rad, frame='icrs')
                     gal=scord.galactic
-                    caches["galactic"][(filename,i)]=np.exp(-(gal.b**2/(2*(10.*u.deg)**2)))
-                var.append(caches["galactic"][(filename,i)])
+                    caches["galactic"][(filename,i)]=gal.b
+                    
+                galb=caches["galactic"][(filename,i)]
+                for d in [1.,5.,10.,20.]:
+                    var.append(np.exp(-(galb**2/(2*(d*u.deg)**2))))
             
             if o.SFD:
                 if (o.SFD==2):
@@ -248,7 +253,18 @@ def getVnames(o):
     for name in cnlist:
     ## cached moon
         if (getattr(o,name)):
-            vnames.append(name)
+            if name=="galactic":
+                vnames.append("gal1")
+                vnames.append("gal5")
+                vnames.append("gal10")
+                vnames.append("gal20")
+            elif name=="ecliptic":
+                vnames.append("ecl1")
+                vnames.append("ecl5")
+                vnames.append("ecl10")
+                vnames.append("ecl20")
+            else:
+                vnames.append(name)
             if (getattr(o,name)==1):
                 caches[name]=cPickle.load(open(name+".cache"))
             else:
