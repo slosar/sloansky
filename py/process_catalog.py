@@ -85,22 +85,25 @@ def analyze(o,cat,vnames,ofs):
         fchi2=open(o.outroot+"chi2.txt",'w')
     for iter in range(o.Nit):
         if rank==0:
-            todolist=[-1]+list(np.random.permutation(Nc))
+            todolist=[-1,-2]+list(np.random.permutation(Nc))[:5]
         else:
             todolist=None
         todolist=comm.bcast(todolist,root=0)
         for varcount in todolist:
             if (rank==0):
                 print "Iteration, variable: ",iter, varcount, 
-                if (varcount<0):
+                if (varcount==-1):
                     print " mean sky"
+                elif (varcount==-2):
+                    print " chi2 calc"
                 else:
                     print vnames[varcount]
             nsp=0
             current=np.zeros(Np)
             currentw=np.zeros(Np)
             cc=0
-            chi2=0
+            chi2=0.
+            dof=0
             for filename,vars in cat[mystart:myend]:
                 cc+=1
                 if rank==0:
@@ -115,8 +118,8 @@ def analyze(o,cat,vnames,ofs):
                     ndx=np.array([int(v) for v in ((cloglam-o.ll_start)/o.ll_step+0.5)])
                     ## values of variables
                     var=vars[j,:]-ofs
-                    if (varcount==-1):
-                        unwanted=np.zeros(Np)
+                    if (varcount<0):
+                        unwanted=np.zeros(Np) if varcount==-1 else meansky*1.0
                         for i in range(Nc):
                             unwanted+=contr[i]*var[i]
                     else:
@@ -124,39 +127,48 @@ def analyze(o,cat,vnames,ofs):
                         for i in range(Nc):
                             if (i!=varcount):
                                 unwanted+=contr[i]*var[i]
-                    w = 1 if varcount == -1 else var[varcount]
                     toadd=(csky-unwanted[ndx])
                     whnan=np.where(np.isnan(toadd))
+                    if len(whnan[0])>0:
+                        print whnan,np.any(np.isnan(csky)), np.any(np.isnan(unwanted[ndx]))
                     toadd[whnan]=0.0
                     civar[whnan]=0.0
-                    current[ndx]+=civar*w*
-                    currentw[ndx]+=civar*w**2
-                    if (varcount==-1):
-                        chi2+=((toadd-meansky)**2*civar).sum()
-            current=comm.allreduce(current,op=MPI.SUM)
-            currentw=comm.allreduce(currentw,op=MPI.SUM)
-            current/=currentw
-            current[np.where(current>20)]=20.0
-            current[np.where(current<-20)]=-20.0
-            if (varcount==-1):
-                chi2=comm.allreduce(chi2,op=MPI.sum)
-                fchi2.write("%g \n",chi2)
-                meansky=current*1.0
-                if (rank==0):
-                    f=open(o.outroot+"meansky_%i.txt"%(iter),"w")
-                    for l,w,v in zip(loglam,currentw,meansky):
-                        if w>0:
-                            f.write("%g %g %g\n"%(l,w,v))
-                    f.close()
+                    if (varcount==-2):
+                        chi2+=((toadd-meansky[ndx])**2*civar).sum()
+                        dof+=(civar>0).sum()
+                    else:
+                        w = 1 if varcount == -1 else var[varcount]
+                        current[ndx]+=civar*w*toadd
+                        currentw[ndx]+=civar*w**2
+            if (varcount==-2):
+                chi2=comm.allreduce(chi2,op=MPI.SUM)
+                dof=comm.allreduce(dof,op=MPI.SUM)
+                fchi2.write("%g %i \n"%(chi2,dof))
+                fchi2.flush()
+            else:    
+                current=comm.allreduce(current,op=MPI.SUM)
+                currentw=comm.allreduce(currentw,op=MPI.SUM)
+                wh=np.where(currentw>0)
+                current[wh]/=currentw[wh]
+                current[np.where(current>20)]=20.0
+                current[np.where(current<-20)]=-20.0
+                if (varcount==-1):
+                    meansky=current*1.0
+                    if (rank==0):
+                        f=open(o.outroot+"meansky_%i.txt"%(iter),"w")
+                        for l,w,v in zip(loglam,currentw,meansky):
+                            if w>0:
+                                f.write("%g %g %g\n"%(l,w,v))
+                        f.close()
 
-            else:
-                contr[varcount]=current*1.0
-                if (rank==0):
-                    f=open(o.outroot+"component_%s_%i.txt"%(vnames[varcount],iter),"w")
-                    for l,w,v in zip(loglam,currentw,current):
-                        if w>0:
-                            f.write("%g %g %g\n"%(l,w,v))
-                    f.close()
+                else:
+                    contr[varcount]=current*1.0
+                    if (rank==0):
+                        f=open(o.outroot+"component_%s_%i.txt"%(vnames[varcount],iter),"w")
+                        for l,w,v in zip(loglam,currentw,current):
+                            if w>0:
+                                f.write("%g %g %g\n"%(l,w,v))
+                        f.close()
         if (rank==0):
             print "Finished iteration/varcount",iter,varcount
         
