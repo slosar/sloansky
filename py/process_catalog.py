@@ -82,6 +82,7 @@ def analyze(o,cat,vnames,ofs):
     loglam=o.ll_start+o.ll_step*np.arange(Np)
     if (rank==0):
         print "Starting..."
+        fchi2=open(o.outroot+"chi2.txt",'w')
     for iter in range(o.Nit):
         if rank==0:
             todolist=[-1]+list(np.random.permutation(Nc))
@@ -99,6 +100,7 @@ def analyze(o,cat,vnames,ofs):
             current=np.zeros(Np)
             currentw=np.zeros(Np)
             cc=0
+            chi2=0
             for filename,vars in cat[mystart:myend]:
                 cc+=1
                 if rank==0:
@@ -123,18 +125,25 @@ def analyze(o,cat,vnames,ofs):
                             if (i!=varcount):
                                 unwanted+=contr[i]*var[i]
                     w = 1 if varcount == -1 else var[varcount]
-                    current[ndx]+=civar*w*(csky-unwanted[ndx])
+                    toadd=(csky-unwanted[ndx])
+                    whnan=np.where(np.isnan(toadd))
+                    toadd[whnan]=0.0
+                    civar[whnan]=0.0
+                    current[ndx]+=civar*w*
                     currentw[ndx]+=civar*w**2
+                    if (varcount==-1):
+                        chi2+=((toadd-meansky)**2*civar).sum()
             current=comm.allreduce(current,op=MPI.SUM)
             currentw=comm.allreduce(currentw,op=MPI.SUM)
-
             current/=currentw
             current[np.where(current>20)]=20.0
             current[np.where(current<-20)]=-20.0
             if (varcount==-1):
+                chi2=comm.allreduce(chi2,op=MPI.sum)
+                fchi2.write("%g \n",chi2)
                 meansky=current*1.0
                 if (rank==0):
-                    f=open(o.outroot+"meansky%i.txt"%(iter),"w")
+                    f=open(o.outroot+"meansky_%i.txt"%(iter),"w")
                     for l,w,v in zip(loglam,currentw,meansky):
                         if w>0:
                             f.write("%g %g %g\n"%(l,w,v))
