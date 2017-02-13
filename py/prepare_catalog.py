@@ -33,13 +33,15 @@ def options():
                       help="Output filename", type="string")
     parser.add_option("--skip", dest="skipfact", default=skipfact,
                       help="skip factor", type="int")
-    parser.add_option("--Naz", dest="Naz", default=36,
+    parser.add_option("--Naz", dest="Naz", default=8,
                       help="# azmimuths", type="int")
     parser.add_option("--weather", dest="weather", default=0,
                       help="weather: 0=ignore, 1=use", type="int")
     parser.add_option("--sunspots", dest="sunspots", default=0,
                       help="sunspots: 0=ignore, 1=use", type="int")
     parser.add_option("--chips", dest="chips", default=0,
+                      help="chips: 0=ignore, 1=use", type="int")
+    parser.add_option("--platepos", dest="platepos", default=0,
                       help="chips: 0=ignore, 1=use", type="int")
 
     for n in cnlist:
@@ -121,7 +123,7 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                 if (daz>np.pi):
                     daz=2*np.pi-daz
                 if (daz<azstep):
-                    v=(1.-daz/(azstep))*np.cos(alt)
+                    v=(1.-daz/(azstep))*ext.header["AIRMASS"]
                 else:
                     v=0
                 var.append(v)
@@ -134,6 +136,10 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                     print "bad",filename, i
                     sys.exit(1)
 
+            if o.platepos:
+                var.append(np.sqrt(ext.header["ARCOFFX"]**2+ext.header["ARCOFFY"]**2))
+                    
+                    
             if o.sunspots:
                 var.append(sa.activity(ext.header['MJD']))
 
@@ -242,6 +248,9 @@ def getVnames(o):
         #dusta,dustb seemingly not everywhere
         for n in ['seeing']:
             vnames.append(n)
+    if (o.platepos):
+        vnames.append("platepos")
+        
     if (o.sunspots):
         vnames.append("sunspots")
     if (o.chips):
