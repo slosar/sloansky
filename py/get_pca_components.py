@@ -137,21 +137,22 @@ def analyze(o,cov):
     ncov=cov/np.outer(cd,cd)
     plt.imshow(ncov)
     plt.colorbar()
-    plt.show()
+    plt.savefig('2cov.pdf')
+    #plt.show()
 
 
     plt.figure(figsize=(10,10))
     plt.plot(np.cumsum(evl))
     plt.semilogx()
-    plt.show()
+    plt.savefig("2cumsum.pdf")
+    #plt.show()
     plt.figure(figsize=(10,10))
     plx=6000
     for i in range(o.Nc):
         plt.subplot(o.Nc,1,i+1)
         plt.plot(evc[:,i][:plx])
-    plt.show()
-
-
+    plt.savefig("2comp.pdf")
+    #plt.show()
     
 if __name__ == "__main__":
     main()
