@@ -85,7 +85,7 @@ def analyze(o,cat,vnames,ofs):
         fchi2=open(o.outroot+"chi2.txt",'w')
     for iter in range(o.Nit):
         if rank==0:
-            todolist=[-1,-2]+list(np.random.permutation(Nc))[:5]
+            todolist=[-1,-2]+list(np.random.permutation(Nc))
         else:
             todolist=None
         todolist=comm.bcast(todolist,root=0)
@@ -143,8 +143,9 @@ def analyze(o,cat,vnames,ofs):
             if (varcount==-2):
                 chi2=comm.allreduce(chi2,op=MPI.SUM)
                 dof=comm.allreduce(dof,op=MPI.SUM)
-                fchi2.write("%g %i \n"%(chi2,dof))
-                fchi2.flush()
+                if (rank==0):
+                    fchi2.write("%g %i \n"%(chi2,dof))
+                    fchi2.flush()
             else:    
                 current=comm.allreduce(current,op=MPI.SUM)
                 currentw=comm.allreduce(currentw,op=MPI.SUM)

@@ -2,6 +2,6 @@ N: 72
 group: [new,new2]
 job_name: prepare_sky
 hostfile: auto
-command: mpirun -hostfile %hostfile% py/prepare_catalog.py -o fullcat.cp --skip=1  --moon=1 --galactic=2 --ecliptic=2  --SFD=2  --halpha=2 --haslam=2 --weather=1 --chip=1 --sunspots=1 
+command: mpirun -hostfile %hostfile% py/prepare_catalog.py -o fullcat2.cp --skip=1  --moon=1 --galactic=2 --ecliptic=2  --SFD=1  --halpha=1 --haslam=1 --weather=1 --chip=1 --sunspots=1 --platepos=1 
 
 
