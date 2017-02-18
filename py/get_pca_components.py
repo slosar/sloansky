@@ -4,6 +4,8 @@ import numpy as np
 import pyfits
 from optparse import OptionParser
 from sklearn.decomposition import FastICA, PCA
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import scipy.linalg as la
 
