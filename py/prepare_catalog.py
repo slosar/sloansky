@@ -6,7 +6,7 @@ import sys, cPickle
 import matplotlib.pyplot as plt
 from optparse import OptionParser
 from mpi4py import MPI
-import moon_angle_var as mav
+import moonsun_angle_var as mav
 import time
 from astropy.coordinates import SkyCoord,  ICRS, BarycentricTrueEcliptic
 import astropy.units as u
@@ -17,7 +17,7 @@ from SolarActivity import SolarActivity
 #iers.conf.auto_download = False  
 #iers.conf.auto_max_age = None  
 
-cnlist=["moon", "ecliptic","galactic", "SFD", "halpha", "haslam"]
+cnlist=["moon", "sun", "ecliptic","galactic", "SFD", "halpha", "haslam"]
 
 
 def options():
@@ -137,7 +137,7 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                     sys.exit(1)
 
             if o.platepos:
-                var.append(np.sqrt(ext.header["ARCOFFX"]**2+ext.header["ARCOFFY"]**2))
+                var.append(100*np.sqrt(ext.header["ARCOFFX"]**2+ext.header["ARCOFFY"]**2))
                     
                     
             if o.sunspots:
@@ -157,6 +157,11 @@ def getVars(o,filelist,caches,mystart,myend,Nfp):
                 if (o.moon==2):
                     caches["moon"][(filename,i)]=mav.moon_angle_var(da,ext)
                 var.append(caches["moon"][(filename,i)])
+
+            if o.sun:
+                if (o.sun==2):
+                    caches["sun"][(filename,i)]=mav.sun_angle_var(da,ext)
+                var.append(caches["sun"][(filename,i)])
 
             scord=None
             if o.ecliptic:
