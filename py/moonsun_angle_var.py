@@ -1,6 +1,6 @@
 import pyfits
 import numpy as np
-from astropy.coordinates import SkyCoord, get_moon, EarthLocation, ICRS, GCRS,AltAz
+from astropy.coordinates import SkyCoord, get_moon, get_sun, EarthLocation, ICRS, GCRS,AltAz
 from astropy.time import Time
 from astropy.io.fits.hdu.hdulist import HDUList
 from datetime import date
@@ -64,4 +64,28 @@ def moon_angle_var(fobj,ext):
     #in astropy error possible here
     phase=0.5*(1-np.cos(moon_phase*np.pi*2/28.))
     var=np.cos(moon_sky_angle.radian)*phase
+    return var
+
+def sun_angle_var(fobj,ext):
+    #getting RA and DEC
+    sampling=fobj[0].header
+
+    #FINDING INTERPLATE SKY TIME
+    fin_mean=[] #time for each moon sky observation interplate, used for moon angle
+    h_beg=[]
+    h_end=[]
+    mean_per=[] #time for each moon sky observation intraplate
+    h=ext.header
+    h_beg.append(h['TAI-BEG']) #ONLY VARIES WITH PLATE NUMBER, different for k's
+    h_end.append(h['TAI-END']) #ONLY VARIES WITH PLATE NUMBER, different for k's
+    ttime=(h['TAI-BEG']+h['TAI-END'])/2
+    #TAI TO MJD
+    time_MJD=ttime/(86400.)
+
+    t=Time(time_MJD, format='mjd')
+    sun=get_sun(t)
+    sunaltaz=sun.transform_to(AltAz(location=aplEL, obstime=t))
+    alt=sunaltaz.alt
+    assert (alt<0.0)
+    var=np.exp(-0.5*(alt/(8*u.deg))**2)
     return var

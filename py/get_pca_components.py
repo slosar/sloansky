@@ -24,13 +24,14 @@ def main():
     o = options() 
     setMPI(o)
     cov=load(o)
-    analyze(o,cov)
+    if rank==0:
+        analyze(o,cov)
     
 def options():
     parser = OptionParser()
     ll_start=3.5
     ll_end=4.1
-    ll_step=1e-4
+    ll_step=3e-4
     dirname="sky_data/"
     skipfact=10
     Nc=5
@@ -47,7 +48,7 @@ def options():
     parser.add_option("--Nc", dest="Nc", default=Nc,
                       help="Numer of components", type="int")
 
-    parser.add_option("--outroot", dest="outroot", default="output/",
+    parser.add_option("--outroot", dest="outroot", default="pca",
                       help="Output root", type="string")
 
     #
@@ -90,7 +91,7 @@ def load(o):
             continue
         cc+=1
         if rank==0:
-            print "Done: %i/%i"%(cc,len(filelist))
+            print "Done: %i/%i"%(cc,len(filelist)/size)
 
         da=pyfits.open(filename)
         No=(len(da)-4)/2
@@ -120,6 +121,10 @@ def load(o):
             Nsp+=1
             #covw+=np.outer(w,w)
     print "Skipped",nskip
+    if MPI:
+        cov=comm.allreduce(cov,op=MPI.SUM)
+        Nsp=comm.allreduce(Nsp,op=MPI.SUM)
+
     cov/=Nsp
     #cov[np.where(np.isnan(cov))]=0.0
     #for i in range(Np):
@@ -129,9 +134,10 @@ def load(o):
 
 def analyze(o,cov):
     print "renorm"
-
     print "Doing PCA my way"
     evl,evc=la.eig(cov)
+    np.savez(o.outroot+"_evl",evl)
+    np.savez(o.outroot+"_evc",evc)
 
     plt.figure(figsize=(10,10))
     cd=np.sqrt(cov.diagonal())
