@@ -45,7 +45,7 @@ def options():
     parser.add_option("--Nc", dest="Nc", default=Nc,
                       help="Numer of components", type="int")
 
-    parser.add_option("--outroot", dest="outroot", default="output/",
+    parser.add_option("--outroot", dest="outroot", default="ica",
                       help="Output root", type="string")
 
     #
@@ -106,12 +106,19 @@ def load(o):
                 cloglam=ext.data["loglam"]
                 csky=ext.data["sky"]+ext.data["flux"]
                 civar=ext.data["ivar"]
+                wh=np.where(cloglam<o.ll_end)
+                cloglam=cloglam[wh]
+                csky=csky[wh]
+                civar=civar[wh]
+
                 clam=10**cloglam
                 #for l1,l2 in lines:
                 #    wh=np.where((clam>l1)&(clam<l2))
                 #    csky[wh]=0.0
                 #    civar[wh]=0.0
                 ndx=np.array([int(v) for v in ((cloglam-o.ll_start)/o.ll_step+0.5)])
+                if len(ndx)==0:
+                    continue
                 vec[ndx]+=csky
                 ivar[ndx]+=civar
                 ndx1=min(ndx1,ndx[0])
@@ -138,7 +145,7 @@ def gnorm(v):
 def mplot(lam, v):
     tp=v/gnorm(v)
     plt.plot(lam,v,'b-')
-    plt.plot(lam,-v,'r')
+    #plt.plot(lam,-v,'r')
 def analyze(o,dlist):
     print "taking off best fit mean"
     lam=10**(np.arange(o.ll_start,o.ll_end,o.ll_step))
@@ -179,7 +186,8 @@ def analyze(o,dlist):
     print "Doing PCA..."
     pca = PCA(n_components=o.Nc)
     H = pca.fit_transform(dlist.T)  # estimate PCA sources
-
+    np.savez(o.outroot+"_ica",S)
+    np.savez(o.outroot+"_pca",H)
 
     for ofi in range(o.Nc/5+1):
         plt.figure(figsize=(10,10))
@@ -187,10 +195,10 @@ def analyze(o,dlist):
             plt.subplot(5,2,2*i+1)
             #plt.plot(np.log(rnorm[:plx]),'r-')
             mplot(lam,S[:,5*ofi+i])
-            plt.semilogy()
+            #plt.semilogy()
             plt.subplot(5,2,2*i+2)
             mplot(lam,H[:,5*ofi+i])
-            plt.semilogy()
+            #plt.semilogy()
         plt.show()
 
 
